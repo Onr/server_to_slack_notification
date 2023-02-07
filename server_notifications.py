@@ -1,32 +1,27 @@
 import time
 import logging
-import threading
 
+import toml
 import psutil
 from slack_messages import slack_notification
 
 
-def define_logging():
+def define_logging(file_path):
     # print logs to console
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     # print logs to file
-    fh = logging.FileHandler("usage.log")
+    fh = logging.FileHandler(file_path)
     fh.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     fh.setFormatter(formatter)
     logging.getLogger().addHandler(fh) 
 
 
-def start_function_in_thread(function, args):
-    thread = threading.Thread(target=function, name=function.__name__, args=args)
-    thread.start()
-
-
-def slack_alert_on_cpu_usage(threshold=90, delay=5):
-    # get cpu usage
-    cpu_high_usage = False
-    while True:
+def slack_alert_on_cpu_usage(time_step=0, active=True, period=30, threshold=90):
+    if active and ((time_step % period) == 0):
+        # get cpu usage
+        cpu_high_usage = False
         cpu_usage = psutil.cpu_percent(interval=1, percpu=False)
         logging.info(f"CPU usage is {cpu_usage}%")
         if cpu_usage > threshold and not cpu_high_usage:
@@ -37,14 +32,12 @@ def slack_alert_on_cpu_usage(threshold=90, delay=5):
             cpu_high_usage = False
             slack_notification("CPU usage is back to normal")
             logging.info("CPU usage is back to normal")
-            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        time.sleep(delay - 1)
 
 
-def slack_alert_on_memory_usage(threshold=90, delay=30):
-    # get memory usage
-    memory_high_usage = False
-    while True:
+def slack_alert_on_memory_usage(time_step=0, active=True, period=30, threshold=90):
+    if active and ((time_step % period) == 0):
+        # get memory usage
+        memory_high_usage = False
         memory_usage = psutil.virtual_memory().percent
         logging.info(f"Memory usage is {memory_usage}%")
         if memory_usage > threshold and not memory_high_usage:
@@ -55,14 +48,13 @@ def slack_alert_on_memory_usage(threshold=90, delay=30):
             memory_high_usage = False
             slack_notification("Memory usage is back to normal")
             logging.info("Memory usage is back to normal")
-        time.sleep(delay - 1)
 
 
-def slack_alert_on_disk_usage(threshold=90, delay=30):
-    # get disk usage
-    disk_high_usage = False
-    disk_home_high_usage = False
-    while True:
+def slack_alert_on_disk_usage(time_step=0, active=True, period=30, threshold=90):
+    if active and ((time_step % period) == 0):
+        # get disk usage
+        disk_high_usage = False
+        disk_home_high_usage = False
         disk_usage = psutil.disk_usage(path="/").percent
         logging.info(f"Disk usage in '/' is {disk_usage}%")
         if disk_usage > threshold and not disk_high_usage:
@@ -86,17 +78,38 @@ def slack_alert_on_disk_usage(threshold=90, delay=30):
             slack_notification("Disk usage in /home is back to normal")
             logging.info("Disk usage in /home is back to normal")
 
-        time.sleep(delay - 1)
     
 
 if __name__ == "__main__":
-    define_logging()
+    # read config file
+    with open('notification_config.toml') as f:
+        config = toml.load(f)
 
-    # run cpu notification in the background
-    start_function_in_thread(function=slack_alert_on_cpu_usage, args=[90, 10])
+    # setup loggings
+    define_logging(config['logging']['file_path'])
+    logging.info("Starting server notifications")
+    logging.info(f"Config: \n{config}")
     
-    # run memory notification in the background
-    start_function_in_thread(function=slack_alert_on_memory_usage, args=[90, 60])
+    # define notifications functions the keys should be similar to the keys in the config file
+    notifications_func_dict = {
+        'cpu': slack_alert_on_cpu_usage,
+        'memory': slack_alert_on_memory_usage,
+        'disk': slack_alert_on_disk_usage,
+    }
+    time_step = 0
+    while True:
+        # Call notifications
+        for key in notifications_func_dict.keys():
+           notifications_func_dict[key](time_step, **config[key])
 
-    # run disk notification in the background
-    start_function_in_thread(function=slack_alert_on_disk_usage, args=[90, 60])
+        # Check if config file changed
+        with open('notification_config.toml') as f:
+            new_config = toml.load(f)
+            if new_config != config:
+                config = new_config
+                logging.info(f"Config changed \nNew config: \n{config}")
+
+        # Increment time step
+        time_step = (time_step + 1) % (60*60*24*7)
+        time.sleep(1)
+

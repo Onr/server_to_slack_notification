@@ -1,0 +1,20 @@
+[cpu]
+active = true
+period = 60
+threshold = 90
+
+[memory]
+active = true
+period = 300
+threshold = 90
+
+[disk]
+active = true
+period = 300
+threshold = 90
+
+[logging]
+file_path = "usage.log"
+
+
+
