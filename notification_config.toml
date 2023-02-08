@@ -13,6 +13,10 @@ active = true
 period = 300
 threshold = 90
 
+[status_update]
+active = true
+at_time = "7:30" 
+
 [logging]
 file_path = "usage.log"
 

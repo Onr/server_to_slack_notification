@@ -7,7 +7,7 @@ import urllib3
 # Send Slack notification based on the given message
 def slack_notification(message):
 
-    webhook_url = os.environ.get['SLACK_WEBHOOK_URL']
+    webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
     try:
         slack_message = {'text': message}
 

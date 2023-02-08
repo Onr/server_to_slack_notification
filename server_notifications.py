@@ -1,8 +1,10 @@
 import time
 import logging
+import traceback
 
 import toml
 import psutil
+from datetime import datetime
 from slack_messages import slack_notification
 
 
@@ -18,7 +20,7 @@ def define_logging(file_path):
     logging.getLogger().addHandler(fh) 
 
 
-def slack_alert_on_cpu_usage(time_step=0, active=True, period=30, threshold=90):
+def slack_alert_on_cpu_usage(time_step: int = 0, active: bool = True, period: int = 30, threshold: int = 90):
     if active and ((time_step % period) == 0):
         # get cpu usage
         cpu_high_usage = False
@@ -78,13 +80,27 @@ def slack_alert_on_disk_usage(time_step=0, active=True, period=30, threshold=90)
             slack_notification("Disk usage in /home is back to normal")
             logging.info("Disk usage in /home is back to normal")
 
+def slack_server_status_update(time_step=0, active=True, at_time='7:30'):
+    if not active:
+        return
+    now_t = datetime.now().replace(second=0, microsecond=0)  
+    update_t = datetime.strptime(at_time, '%H:%M')
+    # check if the times are the same
+    if (now_t.hour == update_t.hour) and (now_t.minute == update_t.minute):
+        disk_usage = psutil.disk_usage(path="/").percent
+        memory_usage = psutil.virtual_memory().percent
+        cpu_usage = psutil.cpu_percent(interval=1, percpu=False)
+        slack_notification(f"Good Morning ☕. \nI Have some stats to report: \nCPU: {cpu_usage} \nMemory: {memory_usage} \nDisk: {disk_usage}")
+
+
+
     
 
 if __name__ == "__main__":
     # read config file
     with open('notification_config.toml') as f:
         config = toml.load(f)
-
+    breakpoint()
     # setup loggings
     define_logging(config['logging']['file_path'])
     logging.info("Starting server notifications")
@@ -95,21 +111,26 @@ if __name__ == "__main__":
         'cpu': slack_alert_on_cpu_usage,
         'memory': slack_alert_on_memory_usage,
         'disk': slack_alert_on_disk_usage,
+        'status_update': slack_server_status_update
     }
     time_step = 0
-    while True:
-        # Call notifications
-        for key in notifications_func_dict.keys():
-           notifications_func_dict[key](time_step, **config[key])
+    try:
+        while True:
+            # Call notifications
+            for key in notifications_func_dict.keys():
+               notifications_func_dict[key](time_step, **config[key])
 
-        # Check if config file changed
-        with open('notification_config.toml') as f:
-            new_config = toml.load(f)
-            if new_config != config:
-                config = new_config
-                logging.info(f"Config changed \nNew config: \n{config}")
+            # Check if config file changed
+            with open('notification_config.toml') as f:
+                new_config = toml.load(f)
+                if new_config != config:
+                    config = new_config
+                    logging.info(f"Config changed \nNew config: \n{config}")
 
-        # Increment time step
-        time_step = (time_step + 1) % (60*60*24*7)
-        time.sleep(1)
+            # Increment time step
+            time_step = (time_step + 1) % (60*60*24*7)
+            time.sleep(1)
+    except Exception as e:
+        logging.info(f"Logging exception: \n{str(traceback.format_exc())}")
+        slack_notification(f"Logging Hera: Failed!: \nException: \n{str(traceback.format_exc())}")
 
