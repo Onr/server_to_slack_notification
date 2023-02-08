@@ -100,7 +100,6 @@ if __name__ == "__main__":
     # read config file
     with open('notification_config.toml') as f:
         config = toml.load(f)
-    breakpoint()
     # setup loggings
     define_logging(config['logging']['file_path'])
     logging.info("Starting server notifications")
