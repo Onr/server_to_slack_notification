@@ -89,11 +89,11 @@ def slack_server_status_update(time_step=0, active=True, at_time='7:30'):
     # check if the times are the same
     if (now_t.hour == update_t.hour) and ((now_t.minute <= update_t.minute + 1) and ((now_t.minute >= update_t.minute))):
         disk_usage_slash = psutil.disk_usage(path="/").percent
-        disk_usage_slash = psutil.disk_usage(path="/home").percent
+        disk_usage_slash_home = psutil.disk_usage(path="/home").percent
         memory_usage = psutil.virtual_memory().percent
         cpu_usage = psutil.cpu_percent(interval=1, percpu=False)
-        slack_notification(f"Good Morning ☕. \nI Have some stats to report: \nCPU: {cpu_usage}% \nMemory: {memory_usage}% \nDisk \\: {disk_usage_slash}%\n Disk \\home: {disk_usage_slash}%")
-        time.sleep(65)
+        slack_notification(f"Good Morning ☕. \nI Have some stats to report: \nCPU: {cpu_usage}% \nMemory: {memory_usage}% \nDisk \\: {disk_usage_slash}%\n Disk \\home: {disk_usage_slash_home}%")
+        time.sleep(125)
 
 
 if __name__ == "__main__":
