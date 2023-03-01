@@ -98,7 +98,7 @@ def slack_server_status_update(time_step=0, active=True, at_time='7:30'):
 
 if __name__ == "__main__":
     # read config file
-    with open('notification_config.toml') as f:
+    with open('config.toml') as f:
         config = toml.load(f)
     # setup loggings
     define_logging(config['logging']['file_path'])
@@ -120,7 +120,7 @@ if __name__ == "__main__":
                notifications_func_dict[key](time_step, **config[key])
 
             # Check if config file changed
-            with open('notification_config.toml') as f:
+            with open('config.toml') as f:
                 new_config = toml.load(f)
                 if new_config != config:
                     config = new_config

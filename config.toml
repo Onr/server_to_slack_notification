@@ -1,7 +1,7 @@
 [cpu]
 active = true
 period = 60
-threshold = 90
+threshold = 95
 
 [memory]
 active = true
