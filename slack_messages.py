@@ -3,6 +3,8 @@ import os
 import traceback
 import json
 import urllib3
+import argparse
+
 
 # Send Slack notification based on the given message
 def slack_notification(message):
@@ -24,3 +26,16 @@ def slack_notification(message):
         logging.info("Slack notification failed")
 
     return True
+
+
+def main(args):
+    slack_notification(message=args.m)
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Send messages on slack channel')
+    parser.add_argument('-m', type=str, help='message to send')
+    args = parser.parse_args()
+    main(args)
+
