@@ -1,11 +1,14 @@
 import time
 import logging
 import traceback
+import subprocess
 
 import toml
 import psutil
 from datetime import datetime
 from slack_messages import slack_notification
+from langchain.llms import OpenAI
+
 
 
 def define_logging(file_path):
@@ -36,10 +39,12 @@ def slack_alert_on_cpu_usage(time_step: int = 0, active: bool = True, period: in
             logging.info("CPU usage is back to normal")
 
 
+memory_high_usage = False     # TODO fix so this will take affect
 def slack_alert_on_memory_usage(time_step=0, active=True, period=30, threshold=90):
+    global memory_high_usage
+
     if active and ((time_step % period) == 0):
         # get memory usage
-        memory_high_usage = False
         memory_usage = psutil.virtual_memory().percent
         logging.info(f"Memory usage is {memory_usage}%")
         if memory_usage > threshold and not memory_high_usage:
@@ -92,18 +97,39 @@ def slack_alert_on_high_gpu_tmpature(time_step=0, active=True, period=30, thresh
 				slack_notification(f"A GPU IS ON FIRE !!!! (Gpu {gpu_ind}: {tmpature}C)")
 
 
-def slack_server_status_update(time_step=0, active=True, at_time='7:30'):
+def slack_server_status_update(time_step=0, active=True, at_time='7:30',
+                               prompt=None):
     if not active:
         return
     now_t = datetime.now().replace(second=0, microsecond=0)  
     update_t = datetime.strptime(at_time, '%H:%M')
     # check if the times are the same
     if (now_t.hour == update_t.hour) and ((now_t.minute <= update_t.minute + 1) and ((now_t.minute >= update_t.minute))):
-        disk_usage_slash = psutil.disk_usage(path="/").percent
-        disk_usage_slash_home = psutil.disk_usage(path="/home").percent
+
+        disk_usage_s = []
+        # Get list of disk partitions
+        partitions = psutil.disk_partitions()
+        # Iterate over partitions and report percentage, GB amount of free space, and GB amount of used space
+        for partition in partitions:
+            partition_usage = psutil.disk_usage(partition.mountpoint)
+            if 'boot' in partition.mountpoint or 'snap' in partition.mountpoint:
+                continue
+            disk_usage_s += [f"   {partition.mountpoint}: {partition_usage.percent}% used space ({round(partition_usage.free / (1024 * 1024 * 1024), 2)} GB free / {round(partition_usage.used / (1024 * 1024 * 1024), 2)} GB used / {round(partition_usage.total / (1024 * 1024 * 1024), 2)} GB total)"]
+        disk_usage_s = "\n".join(disk_usage_s)
+
         memory_usage = psutil.virtual_memory().percent
         cpu_usage = psutil.cpu_percent(interval=1, percpu=False)
-        slack_notification(f"Good Morning ☕. \nI Have some stats to report: \nCPU: {cpu_usage}% \nMemory: {memory_usage}% \nDisk \\: {disk_usage_slash}%\n Disk \\home: {disk_usage_slash_home}%")
+        send_str = f"Good Morning ☕. \nI Have some stats to report: \nCPU: {cpu_usage}% \nMemory: {memory_usage}% \nDisks:\n"
+        send_str += disk_usage_s
+        if prompt is not None: 
+            try:
+                llm = OpenAI(temperature=0.9)
+                prompt_str = f"{prompt}\n{send_str}"
+                send_str = llm(prompt_str)
+            except:
+                logging.info(f"failed to use llm: \n{str(traceback.format_exc())}")
+
+        slack_notification(send_str)
         time.sleep(125)
 
 
