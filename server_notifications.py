@@ -52,21 +52,24 @@ def slack_alert_on_memory_usage(time_step=0, active=True, period=30, threshold=9
             logging.info("Memory usage is back to normal")
 
 
-def slack_alert_on_disk_usage(time_step=0, active=True, period=30, threshold=90):
+disk_high_usage_list = [False] * 100     # TODO fix so this will take affect
+# disk_locations = ['/', '/home']
+def slack_alert_on_disk_usage(time_step=0, active=True, period=30, threshold=90, disk_locations=disk_high_usage_list):
+    global disk_high_usage_list
     if active and ((time_step % period) == 0):
         # get disk usage
-        disk_high_usage = False
-        disk_home_high_usage = False
-        disk_usage = psutil.disk_usage(path="/").percent
-        logging.info(f"Disk usage in '/' is {disk_usage}%")
-        if disk_usage > threshold and not disk_high_usage:
-            logging.warning("Disk usage is high in '/'")
-            slack_notification("Disk usage is high in '/'")
-            disk_high_usage = True
-        elif disk_usage < threshold and disk_high_usage:
-            disk_high_usage = False
-            slack_notification("Disk usage is back to normal")
-            logging.info("Disk usage is back to normal")
+        for disk_ind in range(len(disk_locations)):
+            disk_usage = psutil.disk_usage(path=disk_locations[disk_ind]).percent
+            logging.info(f"Disk usage in {disk_locations[disk_ind]} is {disk_usage}%")
+            if disk_usage > threshold and not disk_high_usage_list[disk_ind]:
+                logging.warning(f"Disk usage is high in '{disk_locations[disk_ind]}'")
+                slack_notification(f"Disk usage is high in '{disk_locations[disk_ind]}'")
+                disk_high_usage_list[disk_ind] = True
+            elif disk_usage < threshold and disk_high_usage_list[disk_ind]:
+                disk_high_usage_list[disk_ind] = False
+                slack_notification(f"Disk usage in '{disk_locations[disk_ind]}' is back to normal")
+                logging.info(f"Disk usage in '{disk_locations[disk_ind]}' is back to normal")
+
 
 def slack_alert_on_high_gpu_tmpature(time_step=0, active=True, period=30, threshold=90, disk_locations=disk_high_usage_list):
 	if active and ((time_step % period) == 0):
@@ -112,12 +115,15 @@ if __name__ == "__main__":
     define_logging(config['logging']['file_path'])
     logging.info("Starting server notifications")
     logging.info(f"Config: \n{config}")
-    
+    # define disk locations to track
+    global disk_locations
+    disk_locations = config['disk']['disk_locations']
     # define notifications functions the keys should be similar to the keys in the config file
     notifications_func_dict = {
         'cpu': slack_alert_on_cpu_usage,
         'memory': slack_alert_on_memory_usage,
         'disk': slack_alert_on_disk_usage,
+        'status_update': slack_server_status_update,
         'gpu_tmp': slack_alert_on_high_gpu_tmpature,
     }
     time_step = 0
@@ -125,7 +131,7 @@ if __name__ == "__main__":
         while True:
             # Call notifications
             for key in notifications_func_dict.keys():
-               notifications_func_dict[key](time_step, **config[key])
+                notifications_func_dict[key](time_step, **config[key])
 
             # Check if config file changed
             with open('config.toml') as f:
