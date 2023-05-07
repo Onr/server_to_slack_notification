@@ -1,21 +1,28 @@
 [cpu]
 active = true
-period = 60
-threshold = 95
+period = 60 # sec
+threshold = 95 # %
+
+[gpu_tmp]
+active = true
+period = 60 # sec
+threshold = 65 # C
 
 [memory]
 active = true
-period = 300
-threshold = 90
+period = 300 # sec
+threshold = 90 # %
 
 [disk]
 active = true
-period = 300
-threshold = 90
+period = 300 # sec
+threshold = 90 # %
+disk_locations = ['/', '/home']
 
 [status_update]
 active = true
 at_time = "7:30" 
+prompt = "Give a good morning greeting which is inspirational and motivational to a deep learning resarch group named CGM. and include the folowing information:"
 
 [logging]
 file_path = "usage.log"

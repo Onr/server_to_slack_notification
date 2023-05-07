@@ -68,17 +68,25 @@ def slack_alert_on_disk_usage(time_step=0, active=True, period=30, threshold=90)
             slack_notification("Disk usage is back to normal")
             logging.info("Disk usage is back to normal")
 
-        # check disk usage in /home
-        disk_usage_home = psutil.disk_usage(path="/home").percent
-        logging.info(f"Disk usage in /home is {disk_usage_home}%")
-        if disk_usage_home > threshold and not disk_home_high_usage:
-            logging.warning("Disk usage in /home is high")
-            slack_notification("Disk usage in /home is high")
-            disk_home_high_usage = True
-        elif disk_usage_home < threshold and disk_home_high_usage:
-            disk_home_high_usage = False
-            slack_notification("Disk usage in /home is back to normal")
-            logging.info("Disk usage in /home is back to normal")
+def slack_alert_on_high_gpu_tmpature(time_step=0, active=True, period=30, threshold=90, disk_locations=disk_high_usage_list):
+	if active and ((time_step % period) == 0):
+		# Run the command and capture its output
+		output = subprocess.check_output("nvidia-smi | grep C\  | grep W ", shell=True)
+		# Print the output
+		l_c = []
+		for char in output.decode():
+			l_c += [char]
+		commad_out= "".join(l_c)
+		for i, line in enumerate(commad_out.split("\n")):
+			line_split = line.split("   ")
+			if len(line_split) == 1:
+				continue
+			tmpature = int(line.split("   ")[1].split("C")[0])
+			gpu_ind = i
+			logging.info(f"Gpu {gpu_ind}: {tmpature}C")
+			if tmpature > threshold:
+				logging.warning(f"A GPU IS ON FIRE !!!! (Gpu {gpu_ind}: {tmpature}C)")
+				slack_notification(f"A GPU IS ON FIRE !!!! (Gpu {gpu_ind}: {tmpature}C)")
 
 
 def slack_server_status_update(time_step=0, active=True, at_time='7:30'):
@@ -110,7 +118,7 @@ if __name__ == "__main__":
         'cpu': slack_alert_on_cpu_usage,
         'memory': slack_alert_on_memory_usage,
         'disk': slack_alert_on_disk_usage,
-        'status_update': slack_server_status_update
+        'gpu_tmp': slack_alert_on_high_gpu_tmpature,
     }
     time_step = 0
     try:

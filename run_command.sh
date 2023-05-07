@@ -1,2 +1,2 @@
 #!/bin/bash
-python server_notifications.py 
+python3 server_notifications.py 
