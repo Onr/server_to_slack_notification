@@ -6,5 +6,5 @@ platformdirs==2.6.2
 psutil==5.9.4
 tomli==2.0.1
 typing_extensions==4.4.0
-urllib3==1.26.13
+urllib3==1.26.17
 langchain
